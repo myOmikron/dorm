@@ -5,6 +5,7 @@ members = [
     "rorm-declaration",
     "rorm-macro",
     "rorm-sql",
+    "example-forum-server",
 ]
 
 [package]
