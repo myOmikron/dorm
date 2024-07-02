@@ -58,18 +58,18 @@ pub mod model;
 pub static MODELS: [fn() -> imr::Model] = [..];
 
 /// Write all models in the Intermediate Model Representation to a [writer](std::io::Write).
-pub fn write_models(writer: &mut impl std::io::Write) -> Result<(), String> {
+pub fn write_models(writer: &mut impl std::io::Write) -> Result<(), serde_json::Error> {
     let imf = imr::InternalModelFormat {
         models: MODELS.iter().map(|func| func()).collect(),
     };
-    serde_json::to_writer(writer, &imf).map_err(|err| err.to_string())
+    serde_json::to_writer(writer, &imf)
 }
 
 /// Prints all models in the Intermediate Model Representation to stdout.
 /// This should be used as a main function to produce the file for the migrator.
 ///
 /// See also [`rorm_main`]
-pub fn print_models() -> Result<(), String> {
+pub fn print_models() -> Result<(), serde_json::Error> {
     write_models(&mut std::io::stdout())
 }
 
