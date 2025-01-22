@@ -1,12 +1,9 @@
 use rorm::conditions::Value;
-use rorm::fields::traits::FieldType;
-use rorm::imr::DbType;
-use rorm::internal::field::as_db_type::get_single_imr;
-use rorm::internal::field::modifier::{
-    SingleColumnCheck, SingleColumnFromName, UnchangedAnnotations,
-};
-use rorm::internal::field::Field;
-use rorm::internal::hmr::db_type;
+use rorm::db::sql::value::NullType;
+use rorm::fields::traits::{Array, FieldColumns, FieldType};
+use rorm::fields::utils::check::shared_linter_check;
+use rorm::fields::utils::get_annotations::forward_annotations;
+use rorm::fields::utils::get_names::single_column_name;
 use rorm::prelude::ForeignModel;
 use rorm::{Model, Patch};
 use serde::{Deserialize, Deserializer, Serialize};
@@ -73,30 +70,28 @@ impl<'de> Deserialize<'de> for StarsAmount {
     }
 }
 impl FieldType for StarsAmount {
-    type Columns<T> = [T; 1];
+    type Columns = Array<1>;
 
-    fn into_values(self) -> Self::Columns<Value<'static>> {
+    const NULL: FieldColumns<Self, NullType> = [NullType::I16];
+
+    fn into_values<'a>(self) -> FieldColumns<Self, Value<'a>> {
         self.0.into_values()
     }
 
-    fn as_values(&self) -> Self::Columns<Value<'_>> {
+    fn as_values(&self) -> FieldColumns<Self, Value<'_>> {
         self.0.as_values()
     }
 
-    fn get_imr<F: Field<Type = Self>>() -> Self::Columns<rorm::imr::Field> {
-        get_single_imr::<F>(DbType::Int16)
-    }
-
     type Decoder = StarsAmountDecoder;
-    type AnnotationsModifier<F: Field<Type = Self>> = UnchangedAnnotations;
-    type CheckModifier<F: Field<Type = Self>> = SingleColumnCheck<db_type::Int16>;
-    type ColumnsFromName<F: Field<Type = Self>> = SingleColumnFromName;
+    type GetNames = single_column_name;
+    type GetAnnotations = forward_annotations<1>;
+    type Check = shared_linter_check<1>;
 }
 rorm::new_converting_decoder! {
     pub StarsAmountDecoder,
     |value: i16| -> StarsAmount {
         StarsAmount::new(value).ok_or_else(
-            || rorm::Error::DecodeError(format!("Got invalid number of stars: {value}"))
+            || format!("Got invalid number of stars: {value}")
         )
     }
 }

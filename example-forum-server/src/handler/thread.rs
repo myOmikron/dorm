@@ -5,7 +5,7 @@ use axum::Json;
 use futures_util::TryStreamExt;
 use rorm::fields::types::MaxStr;
 use rorm::prelude::ForeignModelByField;
-use rorm::{and, delete, insert, query, Database, FieldAccess, Model};
+use rorm::{and, delete, insert, query, Database, FieldAccess};
 use serde::{Deserialize, Serialize};
 use time::OffsetDateTime;
 use uuid::Uuid;
@@ -28,7 +28,7 @@ pub async fn create(
     let mut tx = db.start_transaction().await?;
     let identifier = request.name.to_ascii_lowercase();
     if query!(&mut tx, Thread)
-        .condition(Thread::F.identifier.equals(&identifier))
+        .condition(Thread.identifier.equals(&identifier))
         .optional()
         .await?
         .is_some()
@@ -68,32 +68,27 @@ pub async fn get(
 ) -> ApiResult<Json<GetResponse>> {
     let mut tx = db.start_transaction().await?;
 
-    let (name, opened_at) = query!(&mut tx, (Thread::F.name, Thread::F.opened_at))
-        .condition(Thread::F.identifier.equals(&thread))
+    let (name, opened_at) = query!(&mut tx, (Thread.name, Thread.opened_at))
+        .condition(Thread.identifier.equals(&thread))
         .optional()
         .await?
         .ok_or_else(|| ApiError::BadRequest("Unknown thread".to_ascii_lowercase()))?;
 
-    let users = query!(&mut tx, (User::F.id, User::F.username))
+    let users = query!(&mut tx, (User.id, User.username))
         .stream()
         .try_collect::<HashMap<_, _>>()
         .await?;
 
     let posts: Vec<_> = query!(
         &mut tx,
-        (
-            Post::F.uuid,
-            Post::F.message,
-            Post::F.user,
-            Post::F.posted_at
-        )
+        (Post.uuid, Post.message, Post.user, Post.posted_at)
     )
-    .condition(Post::F.thread.equals(&thread))
-    .order_asc(Post::F.posted_at)
+    .condition(Post.thread.equals(&thread))
+    .order_asc(Post.posted_at)
     .stream()
     .map_ok(|(uuid, message, user, posted_at)| ThreadPost {
         uuid,
-        user: user.map(|fm| users[fm.key()].clone()),
+        user: user.map(|ForeignModelByField(id)| users[&id].clone()),
         message: message.into_inner(),
         posted_at,
         replies: 0,
@@ -123,17 +118,17 @@ pub async fn make_post(
 ) -> ApiResult<()> {
     let mut tx = db.start_transaction().await?;
 
-    query!(&mut tx, (Thread::F.identifier,))
-        .condition(Thread::F.identifier.equals(&thread))
+    query!(&mut tx, (Thread.identifier,))
+        .condition(Thread.identifier.equals(&thread))
         .optional()
         .await?
         .ok_or_else(|| ApiError::BadRequest("Unknown thread".to_string()))?;
 
     if let Some(reply_to) = request.reply_to {
-        query!(&mut tx, (Post::F.uuid,))
+        query!(&mut tx, (Post.uuid,))
             .condition(and![
-                Post::F.uuid.equals(reply_to),
-                Post::F.thread.equals(&thread),
+                Post.uuid.equals(reply_to),
+                Post.thread.equals(&thread),
             ])
             .optional()
             .await?
@@ -146,9 +141,9 @@ pub async fn make_post(
             uuid: Uuid::new_v4(),
             message: MaxStr::new(request.message)
                 .map_err(|_| ApiError::BadRequest("Post's message is too long".to_string()))?,
-            user: Some(ForeignModelByField::Key(user.id)),
-            thread: ForeignModelByField::Key(thread),
-            reply_to: request.reply_to.map(ForeignModelByField::Key),
+            user: Some(ForeignModelByField(user.id)),
+            thread: ForeignModelByField(thread),
+            reply_to: request.reply_to.map(ForeignModelByField),
         })
         .await?;
 
@@ -162,7 +157,7 @@ pub async fn delete(
     Path(identifier): Path<String>,
 ) -> ApiResult<()> {
     delete!(&db, Thread)
-        .condition(Thread::F.identifier.equals(&identifier))
+        .condition(Thread.identifier.equals(&identifier))
         .await?;
     Ok(())
 }

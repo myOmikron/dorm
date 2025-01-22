@@ -17,7 +17,7 @@ pub struct Thread {
     #[rorm(auto_create_time)]
     pub opened_at: OffsetDateTime,
 
-    pub posts: BackRef<field!(Post::F.thread)>,
+    pub posts: BackRef<field!(Post.thread)>,
 }
 
 #[derive(Patch)]

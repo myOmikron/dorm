@@ -25,7 +25,7 @@ pub struct User {
     /// What are the user's permissions and responsibilities?
     pub role: UserRole,
 
-    pub posts: BackRef<field!(Post::F.user)>,
+    pub posts: BackRef<field!(Post.user)>,
 }
 
 #[derive(Patch)]

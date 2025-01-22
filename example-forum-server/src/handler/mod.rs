@@ -7,7 +7,7 @@ use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use axum::routing::{delete, get, post, put};
 use axum::Router;
-use rorm::{query, Database, FieldAccess, Model};
+use rorm::{query, Database, FieldAccess};
 use tower_sessions::{session, Session};
 
 use crate::models::user::User;
@@ -47,7 +47,7 @@ impl FromRequestParts<Database> for SessionUser {
             .map_err(|(_, msg)| ApiError::ServerError(format!("Session error: {msg}")))?;
         let user = query!(db, User)
             .condition(
-                User::F.id.equals(
+                User.id.equals(
                     session
                         .get::<i64>("user_id")
                         .await?
