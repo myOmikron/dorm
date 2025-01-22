@@ -15,7 +15,7 @@ use crate::models::post::{NewPost, Post};
 use crate::models::thread::{NewThread, Thread};
 use crate::models::user::User;
 
-#[derive(Deserialize)]
+#[derive(Serialize, Deserialize)]
 pub struct CreateThreadRequest {
     pub name: String,
 }
@@ -47,14 +47,14 @@ pub async fn create(
     Ok(Json(identifier))
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct GetResponse {
     pub identifier: String,
     pub name: String,
     pub opened_at: OffsetDateTime,
     pub posts: Vec<ThreadPost>,
 }
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct ThreadPost {
     pub uuid: Uuid,
     pub user: Option<MaxStr<255>>,
@@ -105,7 +105,7 @@ pub async fn get(
     }))
 }
 
-#[derive(Deserialize)]
+#[derive(Serialize, Deserialize)]
 pub struct MakePostRequest {
     pub message: String,
     pub reply_to: Option<Uuid>,

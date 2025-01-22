@@ -8,7 +8,7 @@ use tower_sessions::Session;
 use crate::handler::{ApiError, ApiResult, SessionUser};
 use crate::models::user::{NewUser, User, UserRole};
 
-#[derive(Deserialize)]
+#[derive(Serialize, Deserialize)]
 pub struct RegisterRequest {
     pub username: MaxStr<255>,
     pub password: String,
@@ -43,7 +43,7 @@ pub async fn register(
     Ok(())
 }
 
-#[derive(Deserialize)]
+#[derive(Serialize, Deserialize)]
 pub struct LoginRequest {
     pub username: String,
     pub password: String,
@@ -87,7 +87,7 @@ pub async fn delete(
     Ok(())
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct ProfileResponse {
     pub username: String,
     pub role: String,

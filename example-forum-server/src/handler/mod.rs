@@ -1,5 +1,5 @@
-mod thread;
-mod user;
+pub mod thread;
+pub mod user;
 
 use axum::extract::FromRequestParts;
 use axum::http::request::Parts;

@@ -1,5 +1,6 @@
 mod handler;
 mod models;
+mod test;
 
 use std::fs;
 
@@ -39,6 +40,8 @@ pub enum Command {
     },
     /// Start the server
     Start,
+    /// Tests the server by sending it requests
+    Test,
 }
 
 #[tokio::main]
@@ -108,6 +111,7 @@ async fn main() -> anyhow::Result<()> {
             )
             .await?
         }
+        Command::Test => test::main().await?,
     }
 
     Ok(())
