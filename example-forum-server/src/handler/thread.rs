@@ -5,7 +5,7 @@ use axum::Json;
 use futures_util::TryStreamExt;
 use rorm::fields::types::MaxStr;
 use rorm::prelude::ForeignModelByField;
-use rorm::{and, delete, insert, query, Database, FieldAccess};
+use rorm::{and, Database, FieldAccess};
 use serde::{Deserialize, Serialize};
 use time::OffsetDateTime;
 use uuid::Uuid;
@@ -27,7 +27,7 @@ pub async fn create(
 ) -> ApiResult<Json<String>> {
     let mut tx = db.start_transaction().await?;
     let identifier = request.name.to_ascii_lowercase();
-    if query!(&mut tx, Thread)
+    if rorm::query(&mut tx, Thread)
         .condition(Thread.identifier.equals(&identifier))
         .optional()
         .await?
@@ -37,7 +37,7 @@ pub async fn create(
             "Please choose another name".to_string(),
         ));
     }
-    insert!(&mut tx, Thread)
+    rorm::insert(&mut tx, Thread)
         .single(&NewThread {
             identifier: identifier.clone(),
             name: request.name,
@@ -68,20 +68,20 @@ pub async fn get(
 ) -> ApiResult<Json<GetResponse>> {
     let mut tx = db.start_transaction().await?;
 
-    let (name, opened_at) = query!(&mut tx, (Thread.name, Thread.opened_at))
+    let (name, opened_at) = rorm::query(&mut tx, (Thread.name, Thread.opened_at))
         .condition(Thread.identifier.equals(&thread))
         .optional()
         .await?
         .ok_or_else(|| ApiError::BadRequest("Unknown thread".to_ascii_lowercase()))?;
 
-    let users = query!(&mut tx, (User.id, User.username))
+    let users = rorm::query(&mut tx, (User.id, User.username))
         .stream()
         .try_collect::<HashMap<_, _>>()
         .await?;
 
-    let posts: Vec<_> = query!(
+    let posts: Vec<_> = rorm::query(
         &mut tx,
-        (Post.uuid, Post.message, Post.user, Post.posted_at)
+        (Post.uuid, Post.message, Post.user, Post.posted_at),
     )
     .condition(Post.thread.equals(&thread))
     .order_asc(Post.posted_at)
@@ -118,14 +118,14 @@ pub async fn make_post(
 ) -> ApiResult<()> {
     let mut tx = db.start_transaction().await?;
 
-    query!(&mut tx, (Thread.identifier,))
+    rorm::query(&mut tx, (Thread.identifier,))
         .condition(Thread.identifier.equals(&thread))
         .optional()
         .await?
         .ok_or_else(|| ApiError::BadRequest("Unknown thread".to_string()))?;
 
     if let Some(reply_to) = request.reply_to {
-        query!(&mut tx, (Post.uuid,))
+        rorm::query(&mut tx, (Post.uuid,))
             .condition(and![
                 Post.uuid.equals(reply_to),
                 Post.thread.equals(&thread),
@@ -135,7 +135,7 @@ pub async fn make_post(
             .ok_or_else(|| ApiError::BadRequest("Unknown post".to_string()))?;
     }
 
-    insert!(&mut tx, Post)
+    rorm::insert(&mut tx, Post)
         .return_nothing()
         .single(&NewPost {
             uuid: Uuid::new_v4(),
@@ -156,7 +156,7 @@ pub async fn delete(
     SessionUser(_user): SessionUser,
     Path(identifier): Path<String>,
 ) -> ApiResult<()> {
-    delete!(&db, Thread)
+    rorm::delete(&db, Thread)
         .condition(Thread.identifier.equals(&identifier))
         .await?;
     Ok(())

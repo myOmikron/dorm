@@ -1,7 +1,7 @@
 use axum::extract::{Path, State};
 use axum::Json;
 use rorm::fields::types::MaxStr;
-use rorm::{and, delete, insert, query, Database, FieldAccess};
+use rorm::{and, Database, FieldAccess};
 use serde::{Deserialize, Serialize};
 use tower_sessions::Session;
 
@@ -19,8 +19,8 @@ pub async fn register(
     Json(request): Json<RegisterRequest>,
 ) -> ApiResult<()> {
     let mut tx = db.start_transaction().await?;
-    if query!(&mut tx, (User.id,))
-        .condition(User.username.equals(request.username.as_str()))
+    if rorm::query(&mut tx, (User.id,))
+        .condition(User.username.equals(&*request.username))
         .optional()
         .await?
         .is_some()
@@ -30,7 +30,7 @@ pub async fn register(
             request.username
         )));
     }
-    let id = insert!(&mut tx, User)
+    let id = rorm::insert(&mut tx, User)
         .return_primary_key()
         .single(&NewUser {
             username: request.username,
@@ -53,7 +53,7 @@ pub async fn login(
     session: Session,
     Json(request): Json<LoginRequest>,
 ) -> ApiResult<()> {
-    if let Some((id,)) = query!(&db, (User.id,))
+    if let Some((id,)) = rorm::query(&db, (User.id,))
         .condition(and![
             User.username.equals(&request.username),
             User.password.equals(&request.password)
@@ -80,7 +80,7 @@ pub async fn delete(
     SessionUser(user): SessionUser,
     session: Session,
 ) -> ApiResult<()> {
-    delete!(&db, User)
+    rorm::delete(&db, User)
         .condition(User.id.equals(user.id))
         .await?;
     session.flush().await?;
@@ -99,12 +99,12 @@ pub async fn profile(
     Path(username): Path<String>,
 ) -> ApiResult<Json<ProfileResponse>> {
     let mut tx = db.start_transaction().await?;
-    let (role,) = query!(&mut tx, (User.role,))
+    let (role,) = rorm::query(&mut tx, (User.role,))
         .condition(User.username.equals(&username))
         .optional()
         .await?
         .ok_or_else(|| ApiError::BadRequest(format!("Unknown user: {username}")))?;
-    let (posts,) = query!(&mut tx, (User.posts.uuid.count(),))
+    let (posts,) = rorm::query(&mut tx, (User.posts.uuid.count(),))
         .condition(User.username.equals(&username))
         .one()
         .await?;
