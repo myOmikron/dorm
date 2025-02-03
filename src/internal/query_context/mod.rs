@@ -4,6 +4,7 @@ use std::borrow::Cow;
 use std::collections::HashMap;
 use std::fmt;
 use std::fmt::Write;
+use std::ops::{Deref, DerefMut};
 
 use rorm_db::sql::join_table::JoinType;
 use rorm_db::sql::ordering::Ordering;
@@ -213,12 +214,39 @@ impl<'v> QueryContext<'v> {
         }
         Some(returning)
     }
+
+    /// Creates a temporary scope in which every path used will be implicitly appended to a base path `P`.
+    pub fn with_base_path<'ctx, P: Path>(&'ctx mut self) -> WithBasePath<'ctx, 'v> {
+        todo!()
+    }
 }
+/// Guard like wrapper for `QueryContext` returned by [`QueryContext::with_base_path`]
+pub struct WithBasePath<'ctx, 'v> {
+    ctx: &'ctx mut QueryContext<'v>,
+}
+impl<'ctx, 'v> Drop for WithBasePath<'ctx, 'v> {
+    fn drop(&mut self) {
+        todo!("Restore ctx to orginal state");
+    }
+}
+impl<'ctx, 'v> Deref for WithBasePath<'ctx, 'v> {
+    type Target = QueryContext<'v>;
+
+    fn deref(&self) -> &Self::Target {
+        &*self.ctx
+    }
+}
+impl<'ctx, 'v> DerefMut for WithBasePath<'ctx, 'v> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut *self.ctx
+    }
+}
+
 impl<'v> QueryContext<'v> {
     /// **Use [`Path::add_to_context`], this method is its impl detail!**
     ///
     /// Add the origin model to the builder
-    pub(crate) fn add_origin_path<M: Model>(&mut self) -> &'static str {
+    pub(crate) fn add_path_origin<M: Model>(&mut self) -> &'static str {
         self.join_aliases
             .entry(PathId::of::<M>())
             .or_insert_with(|| M::TABLE.to_string());
@@ -230,7 +258,7 @@ impl<'v> QueryContext<'v> {
     /// Recursively add a relation path to the builder
     ///
     /// The generic parameters are the parameters defining the outer most [PathStep].
-    pub(crate) fn add_relation_path<F, P>(&mut self) -> &str
+    pub(crate) fn add_path_step<F, P>(&mut self) -> &str
     where
         F: Field + PathField<<F as Field>::Type>,
         P: Path<Current = <F::ParentField as Field>::Model>,

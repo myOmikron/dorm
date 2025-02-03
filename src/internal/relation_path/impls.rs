@@ -14,13 +14,14 @@ impl<M: Model> Path for M {
 
     const IS_ORIGIN: bool = true;
 
-    type Step<F> = (F, Self)
+    type Step<F>
+        = (F, Self)
     where
         F: Field + PathField<<F as Field>::Type>,
         F::ParentField: Field<Model = Self::Current>;
 
     fn add_to_context<'ctx>(context: &'ctx mut QueryContext) -> &'ctx str {
-        context.add_origin_path::<Self>()
+        context.add_path_origin::<Self>()
     }
 }
 
@@ -35,13 +36,14 @@ where
 
     type Current = <<F as PathField<F::Type>>::ChildField as Field>::Model;
 
-    type Step<F2> = (F2, Self)
+    type Step<F2>
+        = (F2, Self)
     where
         F2: Field + PathField<<F2 as Field>::Type>,
         F2::ParentField: Field<Model = Self::Current>;
 
     fn add_to_context<'ctx>(context: &'ctx mut QueryContext) -> &'ctx str {
-        context.add_relation_path::<F, P>()
+        context.add_path_step::<F, P>()
     }
 }
 

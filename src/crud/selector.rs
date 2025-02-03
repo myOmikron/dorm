@@ -34,6 +34,28 @@ pub trait Selector {
     fn select(self, ctx: &mut QueryContext) -> Self::Decoder;
 }
 
+/// Combinator which wraps a selector to apply a path to it.
+pub struct PathedSelector<S, P> {
+    selector: S,
+    path: PhantomData<P>,
+}
+
+impl<S, P> Selector for PathedSelector<S, P>
+where
+    S: Selector,
+    P: Path<Current = S::Model>,
+{
+    type Result = S::Result;
+    type Model = P::Origin;
+    type Decoder = S::Decoder;
+    const INSERT_COMPATIBLE: bool = P::IS_ORIGIN && S::INSERT_COMPATIBLE;
+
+    fn select(self, ctx: &mut QueryContext) -> Self::Decoder {
+        let mut ctx = ctx.with_base_path::<P>();
+        self.selector.select(&mut *ctx)
+    }
+}
+
 impl<T, F, P, I> Selector for FieldProxy<I>
 where
     T: FieldType,
